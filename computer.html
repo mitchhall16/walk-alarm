@@ -196,10 +196,19 @@
     document.getElementById('previewBtn').onclick = () => {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       escalateLevel = 0;
-      playSound();
-      setTimeout(() => { playSound(); }, 300);
-      setTimeout(() => { playSound(); }, 600);
-      setTimeout(() => { if(audioCtx) audioCtx.close(); audioCtx = null; }, 1500);
+
+      if (selectedSound === 'escalate') {
+        // Demo all 3 phases for escalating
+        playGentle();
+        setTimeout(() => { playClassic(); }, 800);
+        setTimeout(() => { playHarsh(); playHarsh(); }, 1500);
+        setTimeout(() => { if(audioCtx) audioCtx.close(); audioCtx = null; }, 2200);
+      } else {
+        playSound();
+        setTimeout(() => { playSound(); }, 300);
+        setTimeout(() => { playSound(); }, 600);
+        setTimeout(() => { if(audioCtx) audioCtx.close(); audioCtx = null; }, 1500);
+      }
     };
 
     // SOUND FUNCTIONS
