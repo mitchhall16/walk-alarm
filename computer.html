@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Walk Alarm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, sans-serif;
+      background: linear-gradient(180deg, #1a0a0a 0%, #2e1a1a 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .screen { display: none; text-align: center; max-width: 500px; }
+    .screen.active { display: block; }
+
+    /* Set Alarm Screen */
+    #setScreen h1 { font-size: 2.5rem; color: #3b82f6; margin-bottom: 10px; }
+    .time-picker { display: flex; justify-content: center; align-items: center; gap: 10px; margin: 30px 0; }
+    .time-input {
+      width: 80px; height: 80px; font-size: 2.5rem; text-align: center;
+      background: rgba(255,255,255,0.1); border: 2px solid rgba(59,130,246,0.5);
+      border-radius: 12px; color: white; outline: none;
+    }
+    .time-input:focus { border-color: #3b82f6; }
+    .time-sep { font-size: 3rem; color: #64748b; }
+    .ampm { display: flex; gap: 5px; }
+    .ampm button {
+      padding: 15px 20px; font-size: 1.2rem; background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: #94a3b8; cursor: pointer;
+    }
+    .ampm button.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+    .btn {
+      margin-top: 20px; padding: 20px 60px; font-size: 1.5rem;
+      background: linear-gradient(135deg, #3b82f6, #2563eb); border: none;
+      border-radius: 12px; color: white; cursor: pointer;
+    }
+    .btn:hover { transform: scale(1.02); }
+    .btn-test { background: linear-gradient(135deg, #ef4444, #dc2626); margin-left: 10px; padding: 20px 30px; }
+
+    /* Waiting Screen */
+    #waitScreen h1 { font-size: 2rem; color: #fbbf24; margin-bottom: 20px; }
+    .alarm-time { font-size: 3rem; color: #3b82f6; margin-bottom: 10px; }
+    .countdown { font-size: 2rem; color: #94a3b8; font-family: monospace; margin-bottom: 30px; }
+    .btn-cancel { background: rgba(239,68,68,0.2); border: 2px solid #ef4444; color: #ef4444; }
+    .btn-cancel:hover { background: #ef4444; color: white; }
+
+    /* Alarm Screen */
+    #alarmScreen h1 { font-size: 3rem; color: #f87171; margin-bottom: 20px; animation: shake 0.5s infinite; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .code { font-size: 4rem; font-family: monospace; letter-spacing: 10px; color: #3b82f6; margin: 20px 0; }
+    .status { padding: 10px 20px; border-radius: 8px; margin: 20px 0; background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .status.connected { background: rgba(74,222,128,0.2); color: #4ade80; }
+    .progress-bar { height: 30px; background: rgba(255,255,255,0.1); border-radius: 15px; overflow: hidden; margin: 20px 0; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #4ade80); transition: width 0.3s; }
+    .distance { font-size: 3rem; font-weight: bold; color: #4ade80; }
+    .target { color: #64748b; font-size: 1.2rem; margin-bottom: 20px; }
+    .qr-box { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); padding: 20px; border-radius: 12px; }
+    .qr-box p { color: #94a3b8; margin: 10px 0; }
+    #qrcode { background: white; padding: 15px; display: inline-block; border-radius: 10px; margin: 10px 0; }
+    .phone-url { font-size: 0.7rem; color: #64748b; word-break: break-all; }
+
+    /* Success Screen */
+    #successScreen h1 { font-size: 3rem; color: #4ade80; margin-bottom: 20px; }
+    #successScreen p { color: #94a3b8; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+
+  <!-- SCREEN 1: Set Alarm -->
+  <div class="screen active" id="setScreen">
+    <h1>Set Alarm</h1>
+    <p style="color:#94a3b8;">Walk 100m to dismiss</p>
+    <div class="time-picker">
+      <input type="number" class="time-input" id="hour" min="1" max="12" value="7">
+      <span class="time-sep">:</span>
+      <input type="number" class="time-input" id="minute" min="0" max="59" value="00">
+      <div class="ampm">
+        <button id="amBtn" class="active">AM</button>
+        <button id="pmBtn">PM</button>
+      </div>
+    </div>
+    <div>
+      <button class="btn" id="setBtn">Set Alarm</button>
+      <button class="btn btn-test" id="testBtn">TEST NOW</button>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Waiting -->
+  <div class="screen" id="waitScreen">
+    <h1>Alarm Set</h1>
+    <div class="alarm-time" id="alarmTimeDisplay">7:00 AM</div>
+    <div class="countdown" id="countdown">--:--:--</div>
+    <button class="btn btn-cancel" id="cancelBtn">Cancel</button>
+  </div>
+
+  <!-- SCREEN 3: ALARM GOING OFF -->
+  <div class="screen" id="alarmScreen">
+    <h1>WAKE UP!</h1>
+    <div class="code" id="codeDisplay">----</div>
+    <div class="status" id="status">Waiting for phone...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    <div class="distance"><span id="distanceDisplay">0</span>m</div>
+    <div class="target">of 100m</div>
+    <div class="qr-box">
+      <p><strong>Scan with your phone:</strong></p>
+      <div id="qrcode"></div>
+      <p class="phone-url" id="phoneUrl"></p>
+    </div>
+  </div>
+
+  <!-- SCREEN 4: Success -->
+  <div class="screen" id="successScreen">
+    <h1>Good Morning!</h1>
+    <p>You walked the distance. Have a great day!</p>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    // Firebase
+    firebase.initializeApp({
+      apiKey: "AIzaSyAoiKhzVwLaPyWmO2AP0_TBb3FDh_sax7Q",
+      authDomain: "alarmclock-74b53.firebaseapp.com",
+      databaseURL: "https://alarmclock-74b53-default-rtdb.firebaseio.com",
+      projectId: "alarmclock-74b53"
+    });
+    const db = firebase.database();
+
+    // State
+    let alarmTime = null;
+    let timerInterval = null;
+    let sessionRef = null;
+    let audioCtx = null;
+    let beepInterval = null;
+
+    // Show screen helper
+    function show(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // AM/PM toggle
+    document.getElementById('amBtn').onclick = () => {
+      document.getElementById('amBtn').classList.add('active');
+      document.getElementById('pmBtn').classList.remove('active');
+    };
+    document.getElementById('pmBtn').onclick = () => {
+      document.getElementById('pmBtn').classList.add('active');
+      document.getElementById('amBtn').classList.remove('active');
+    };
+
+    // SET ALARM
+    document.getElementById('setBtn').onclick = () => {
+      let h = parseInt(document.getElementById('hour').value) || 7;
+      let m = parseInt(document.getElementById('minute').value) || 0;
+      const isPM = document.getElementById('pmBtn').classList.contains('active');
+
+      // Convert to 24h
+      if (isPM && h !== 12) h += 12;
+      if (!isPM && h === 12) h = 0;
+
+      // Set alarm time
+      alarmTime = new Date();
+      alarmTime.setHours(h, m, 0, 0);
+      if (alarmTime <= new Date()) alarmTime.setDate(alarmTime.getDate() + 1);
+
+      // Display
+      const displayH = document.getElementById('hour').value;
+      const displayM = String(m).padStart(2, '0');
+      const displayAP = isPM ? 'PM' : 'AM';
+      document.getElementById('alarmTimeDisplay').textContent = `${displayH}:${displayM} ${displayAP}`;
+
+      // Init audio (user clicked, so we can)
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Start waiting
+      show('waitScreen');
+      timerInterval = setInterval(tick, 1000);
+      tick();
+    };
+
+    // TEST NOW - skip straight to alarm
+    document.getElementById('testBtn').onclick = () => {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      triggerAlarm();
+    };
+
+    // CANCEL
+    document.getElementById('cancelBtn').onclick = () => {
+      clearInterval(timerInterval);
+      alarmTime = null;
+      show('setScreen');
+    };
+
+    // Timer tick
+    function tick() {
+      if (!alarmTime) return;
+      const now = new Date();
+      const diff = alarmTime - now;
+
+      if (diff <= 0) {
+        clearInterval(timerInterval);
+        triggerAlarm();
+        return;
+      }
+
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      document.getElementById('countdown').textContent =
+        `${String(hrs).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    }
+
+    // TRIGGER ALARM
+    function triggerAlarm() {
+      // Generate 4-digit code
+      const code = String(Math.floor(1000 + Math.random() * 9000));
+      document.getElementById('codeDisplay').textContent = code;
+
+      // Use HTTPS GitHub Pages URL for phone (iOS requires HTTPS for GPS)
+      const phoneUrl = `https://mitchhall16.github.io/walk-alarm/?code=${code}`;
+      document.getElementById('phoneUrl').textContent = phoneUrl;
+
+      // Show alarm screen
+      show('alarmScreen');
+
+      // QR Code - use API that always works
+      document.getElementById('qrcode').innerHTML = '';
+      const qrImg = document.createElement('img');
+      qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=' + encodeURIComponent(phoneUrl);
+      qrImg.style.width = '250px';
+      qrImg.style.height = '250px';
+      document.getElementById('qrcode').appendChild(qrImg);
+
+      // Firebase session
+      sessionRef = db.ref('sessions/' + code);
+      sessionRef.set({ totalDistance: 0, targetDistance: 100, connected: false, lastUpdate: Date.now() });
+
+      // Listen for phone updates
+      sessionRef.on('value', snap => {
+        const data = snap.val();
+        if (!data) return;
+
+        if (data.connected) {
+          document.getElementById('status').textContent = 'Phone connected! Start walking...';
+          document.getElementById('status').classList.add('connected');
+        }
+
+        const dist = data.totalDistance || 0;
+        document.getElementById('distanceDisplay').textContent = Math.round(dist);
+        document.getElementById('progress').style.width = Math.min(100, dist) + '%';
+
+        if (dist >= 100) {
+          stopAlarm();
+          show('successScreen');
+          sessionRef.remove();
+        }
+      });
+
+      // START THE BEEPING
+      startBeeping();
+    }
+
+    // Beep sound
+    function beep() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = 880;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function startBeeping() {
+      beep();
+      beepInterval = setInterval(() => { beep(); beep(); }, 1000);
+    }
+
+    function stopAlarm() {
+      if (beepInterval) clearInterval(beepInterval);
+      if (audioCtx) audioCtx.close();
+      beepInterval = null;
+      audioCtx = null;
+    }
+
+    // Cleanup
+    window.onbeforeunload = () => { if (sessionRef) sessionRef.remove(); };
+  </script>
+</body>
+</html>
