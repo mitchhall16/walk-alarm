@@ -35,6 +35,25 @@
       border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: #94a3b8; cursor: pointer;
     }
     .ampm button.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+
+    /* Sound Picker */
+    .sound-section { margin: 25px 0; }
+    .sound-section label { color: #94a3b8; font-size: 1rem; display: block; margin-bottom: 12px; }
+    .sound-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .sound-btn {
+      padding: 12px 16px; font-size: 0.9rem; background: rgba(255,255,255,0.1);
+      border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; color: #94a3b8; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .sound-btn:hover { border-color: #3b82f6; color: white; }
+    .sound-btn.active { background: #3b82f6; border-color: #3b82f6; color: white; }
+    .preview-btn {
+      margin-top: 12px; padding: 8px 20px; font-size: 0.85rem;
+      background: rgba(74,222,128,0.2); border: 1px solid #4ade80;
+      border-radius: 6px; color: #4ade80; cursor: pointer;
+    }
+    .preview-btn:hover { background: rgba(74,222,128,0.3); }
+
     .btn {
       margin-top: 20px; padding: 20px 60px; font-size: 1.5rem;
       background: linear-gradient(135deg, #3b82f6, #2563eb); border: none;
@@ -89,6 +108,19 @@
         <button id="pmBtn">PM</button>
       </div>
     </div>
+
+    <div class="sound-section">
+      <label>Alarm Sound:</label>
+      <div class="sound-options">
+        <button class="sound-btn" data-sound="gentle">Gentle Chime</button>
+        <button class="sound-btn" data-sound="melody">Soft Melody</button>
+        <button class="sound-btn" data-sound="classic">Classic Ring</button>
+        <button class="sound-btn active" data-sound="harsh">Harsh Beep</button>
+        <button class="sound-btn" data-sound="escalate">Escalating</button>
+      </div>
+      <button class="preview-btn" id="previewBtn">Preview Sound</button>
+    </div>
+
     <div>
       <button class="btn" id="setBtn">Set Alarm</button>
       <button class="btn btn-test" id="testBtn">TEST NOW</button>
@@ -141,12 +173,163 @@
     let timerInterval = null;
     let sessionRef = null;
     let audioCtx = null;
-    let beepInterval = null;
+    let soundInterval = null;
+    let selectedSound = 'harsh';
+    let escalateLevel = 0;
 
     // Show screen helper
     function show(id) {
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
+    }
+
+    // Sound selection
+    document.querySelectorAll('.sound-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedSound = btn.dataset.sound;
+      };
+    });
+
+    // Preview sound
+    document.getElementById('previewBtn').onclick = () => {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      escalateLevel = 0;
+      playSound();
+      setTimeout(() => { playSound(); }, 300);
+      setTimeout(() => { playSound(); }, 600);
+      setTimeout(() => { if(audioCtx) audioCtx.close(); audioCtx = null; }, 1500);
+    };
+
+    // SOUND FUNCTIONS
+    function playSound() {
+      if (!audioCtx) return;
+      switch(selectedSound) {
+        case 'gentle': playGentle(); break;
+        case 'melody': playMelody(); break;
+        case 'classic': playClassic(); break;
+        case 'harsh': playHarsh(); break;
+        case 'escalate': playEscalate(); break;
+      }
+    }
+
+    function playGentle() {
+      // Soft chime - high pitched sine wave with quick fade
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = 1200;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.8);
+
+      // Second harmonic
+      setTimeout(() => {
+        if (!audioCtx) return;
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.frequency.value = 1800;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start();
+        osc2.stop(audioCtx.currentTime + 0.6);
+      }, 150);
+    }
+
+    function playMelody() {
+      // Simple ascending melody
+      const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        setTimeout(() => {
+          if (!audioCtx) return;
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.frequency.value = freq;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        }, i * 150);
+      });
+    }
+
+    function playClassic() {
+      // Classic alarm clock ring - alternating frequencies
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = 660;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+
+      // Alternate frequency for ringing effect
+      let ring = true;
+      const ringInterval = setInterval(() => {
+        if (!audioCtx) { clearInterval(ringInterval); return; }
+        osc.frequency.value = ring ? 550 : 660;
+        ring = !ring;
+      }, 50);
+
+      setTimeout(() => {
+        clearInterval(ringInterval);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + 0.1);
+      }, 400);
+    }
+
+    function playHarsh() {
+      // Original harsh beep
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.value = 880;
+      osc.type = 'square';
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.15);
+    }
+
+    function playEscalate() {
+      // Starts gentle, gets harsher over time
+      escalateLevel = Math.min(escalateLevel, 4);
+
+      if (escalateLevel < 2) {
+        // Gentle phase
+        playGentle();
+      } else if (escalateLevel < 3) {
+        // Classic phase
+        playClassic();
+      } else {
+        // Harsh phase
+        playHarsh();
+        setTimeout(() => playHarsh(), 100);
+      }
+    }
+
+    function startAlarmSound() {
+      escalateLevel = 0;
+      playSound();
+
+      soundInterval = setInterval(() => {
+        playSound();
+        if (selectedSound === 'escalate') {
+          escalateLevel += 0.1; // Gradually increase intensity
+        }
+      }, selectedSound === 'melody' ? 2000 : 1000);
     }
 
     // AM/PM toggle
@@ -267,34 +450,14 @@
         }
       });
 
-      // START THE BEEPING
-      startBeeping();
-    }
-
-    // Beep sound
-    function beep() {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.frequency.value = 880;
-      osc.type = 'square';
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.15);
-    }
-
-    function startBeeping() {
-      beep();
-      beepInterval = setInterval(() => { beep(); beep(); }, 1000);
+      // START THE ALARM SOUND
+      startAlarmSound();
     }
 
     function stopAlarm() {
-      if (beepInterval) clearInterval(beepInterval);
+      if (soundInterval) clearInterval(soundInterval);
       if (audioCtx) audioCtx.close();
-      beepInterval = null;
+      soundInterval = null;
       audioCtx = null;
     }
 
